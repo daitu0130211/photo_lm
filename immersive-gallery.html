@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>橹穆 · 再看割你脚趾</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sky-blue: #5bb8f0;
+  --sky-light: #a0d8f8;
+  --cotton-pink: #f7a8c4;
+  --rose-pink: #f47aad;
+  --lavender: #c4a5e8;
+  --card-bg: rgba(255,255,255,0.55);
+  --card-radius: 18px;
+  --text-dark: #3a3050;
+  --text-dim: rgba(60,50,80,0.6);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  font-family:'Noto Sans SC',sans-serif; color:var(--text-dark);
+  user-select:none; -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action: none;
+}
+body { background:linear-gradient(160deg,#dceefb,#eee2f8,#fde2ef); background-attachment:fixed; }
+body::before {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:radial-gradient(450px circle at 20%25%,rgba(91,184,240,0.18),transparent 60%),
+            radial-gradient(380px circle at 70%55%,rgba(247,168,196,0.18),transparent 60%),
+            radial-gradient(320px circle at 50%80%,rgba(196,165,232,0.14),transparent 60%);
+  animation:bgDrift 10s ease-in-out infinite alternate;
+}
+@keyframes bgDrift { 0%{background-position:20%25%,70%55%,50%80%} 100%{background-position:30%20%,60%65%,55%75%} }
+
+#particleCanvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+
+/* HUD */
+#hud { position:fixed; top:28px; left:36px; z-index:40; pointer-events:none; }
+#hud .tag { font-family:'Orbitron',sans-serif; font-size:clamp(0.5rem, 1.2vw, 0.62rem); font-weight:600; letter-spacing:0.25em; text-transform:uppercase; color:rgba(80,60,120,0.45); margin-bottom:2px; }
+#hud .main { font-family:'Orbitron',sans-serif; font-size:clamp(1rem, 2.8vw, 1.6rem); font-weight:900; letter-spacing:0.06em; background:linear-gradient(135deg,var(--sky-blue) 20%,var(--lavender) 50%,var(--rose-pink) 80%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+#hint { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); z-index:40; font-size:clamp(0.55rem, 1.3vw, 0.72rem); font-weight:300; letter-spacing:0.08em; color:rgba(100,80,140,0.4); pointer-events:none; transition:opacity 0.8s ease; white-space:nowrap; }
+
+#factionDots { position:fixed; top:32px; right:clamp(20px, 4vw, 36px); z-index:40; pointer-events:none; display:flex; gap:clamp(6px, 1vw, 10px); align-items:center; }
+.fdot { width:clamp(6px, 1vw, 8px); height:clamp(6px, 1vw, 8px); border-radius:50%; }
+.fdot.b { background:var(--sky-blue); box-shadow:0 0 6px var(--sky-blue); }
+.fdot.p { background:var(--cotton-pink); box-shadow:0 0 6px var(--cotton-pink); }
+.fdot-label { font-family:'Orbitron',sans-serif; font-size:clamp(0.4rem, 0.9vw, 0.5rem); letter-spacing:0.15em; color:rgba(80,60,120,0.4); text-transform:uppercase; }
+
+/* 静态背景装饰（小卫星） */
+#staticBG { position:fixed; top:0; left:0; width:100%; height:100%; z-index:3; overflow:hidden; pointer-events:none; }
+.satellite {
+  position:fixed; border-radius:6px;
+  cursor:pointer; pointer-events:auto;
+  overflow:hidden; box-shadow:0 0 0 0.5px rgba(255,255,255,0.08);
+  z-index: 5;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.satellite:hover { transform:scale(1.1); box-shadow:0 0 12px rgba(200,180,255,0.25); }
+.satellite.popping {
+  animation: satPop 0.8s cubic-bezier(0.22,0.9,0.35,1) forwards !important;
+  z-index:200 !important;
+}
+@keyframes satPop {
+  0%{ filter:brightness(1); transform:scale(1) rotateY(0deg); }
+  30%{ filter:brightness(1.5) drop-shadow(0 0 30px rgba(91,184,240,0.6)); transform:scale(2) rotateY(180deg); }
+  60%{ transform:scale(2.2) rotateY(360deg); filter:brightness(1.3) drop-shadow(0 0 30px rgba(247,168,196,0.6)); }
+  100%{ transform:scale(1) rotateY(720deg); filter:brightness(1); }
+}
+.satellite img { width:100%; height:100%; object-fit:cover; display:block; }
+
+/* ---- 闪闪发光的星尘粒子（全屏飘浮） ---- */
+.sparkle {
+  position:fixed; border-radius:50%;
+  pointer-events:none; z-index:3;
+  animation: sparkleTwinkle var(--dur) ease-in-out infinite alternate;
+}
+@keyframes sparkleTwinkle {
+  0%{ transform:scale(0); opacity:0; }
+  50%{ transform:scale(1.2); opacity:0.9; }
+  100%{ transform:scale(0.3); opacity:0.1; }
+}
+
+/* ---- 飘落白羽/花瓣（结婚氛围） ---- */
+.petal {
+  position:fixed; pointer-events:none; z-index:3;
+  width:var(--pw); height:var(--ph);
+  background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.9), rgba(240,230,255,0.5));
+  border-radius: 40% 80% 60% 30%;
+  animation: petalFall var(--dur) linear infinite;
+  opacity:0.4;
+}
+@keyframes petalFall {
+  0%{ transform: translateY(-10vh) translateX(0) rotate(0deg); opacity:0.6; }
+  25%{ transform: translateY(25vh) translateX(30px) rotate(90deg); opacity:0.5; }
+  50%{ transform: translateY(50vh) translateX(-20px) rotate(180deg); opacity:0.35; }
+  75%{ transform: translateY(75vh) translateX(25px) rotate(270deg); opacity:0.2; }
+  100%{ transform: translateY(110vh) translateX(-10px) rotate(360deg); opacity:0; }
+}
+
+/* 3D 场景 */
+#scene { position:fixed; top:0; left:0; width:100%; height:100%; z-index:2; perspective:1200px; display:flex; align-items:center; justify-content:center; }
+#stage { width:100%; height:100%; transform-style:preserve-3d; will-change:transform; display:flex; align-items:center; justify-content:center; }
+#track { position:relative; transform-style:preserve-3d; width:1px; height:1px; }
+
+/* 卡片 */
+.card { position:absolute; width:clamp(160px, 22vw, 240px); height:clamp(226px, 32vw, 340px); cursor:pointer; will-change:transform,filter; border-radius:var(--card-radius); transition:filter 0.5s ease; }
+.card.popping { animation:popSpin 0.9s cubic-bezier(0.22,0.9,0.35,1) forwards !important; z-index:100 !important; }
+@keyframes popSpin {
+  0%{filter:brightness(1)!important;transform:var(--orig-transform) scale(1) rotateY(0deg)!important}
+  25%{filter:brightness(1.3) drop-shadow(0 0 40px rgba(91,184,240,0.6))!important;transform:var(--orig-transform) scale(1.6) rotateY(180deg) translateZ(100px)!important}
+  50%{transform:var(--orig-transform) scale(1.8) rotateY(360deg) translateZ(140px)!important;filter:brightness(1.3) drop-shadow(0 0 40px rgba(247,168,196,0.6))!important}
+  75%{transform:var(--orig-transform) scale(1.2) rotateY(540deg) translateZ(60px)!important;filter:brightness(1)!important}
+  100%{transform:var(--orig-transform) scale(1) rotateY(720deg) translateZ(0)!important;filter:brightness(1)!important}
+}
+.card:hover { filter:brightness(1.15) drop-shadow(0 0 30px rgba(91,184,240,0.35))!important; z-index:50!important; }
+.card.dimmed { filter:brightness(0.4) blur(2px)!important; opacity:0.35; }
+
+.card-body { position:relative; width:100%; height:100%; border-radius:var(--card-radius); background:var(--card-bg); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); overflow:hidden; box-shadow:0 0 0 1.5px rgba(255,255,255,0.6) inset, 0 0 0 2px rgba(180,170,210,0.2), 0 8px 32px rgba(150,130,180,0.12); }
+.card-border { position:absolute; inset:-3px; border-radius:calc(var(--card-radius)+3px); padding:3px; background:conic-gradient(from 0deg,var(--sky-blue),var(--cotton-pink),var(--lavender),var(--rose-pink),var(--sky-light),var(--cotton-pink),var(--sky-blue),var(--lavender)); -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; opacity:0.6; pointer-events:none; z-index:0; animation:borderSpin 5s linear infinite; mix-blend-mode:overlay; }
+@keyframes borderSpin { to{transform:rotate(360deg)} }
+.card:hover .card-border, .card.popping .card-border { opacity:1; animation-duration:1s; }
+.card-media { position:absolute; inset:0; overflow:hidden; border-radius:var(--card-radius); z-index:1; }
+.card-media img, .card-media video { width:100%; height:100%; object-fit:cover; }
+
+.card-label { position:absolute; bottom:0; left:0; right:0; padding:24px 12px 12px; z-index:3; background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.7) 35%,rgba(255,255,255,0.92) 100%); border-radius:0 0 var(--card-radius) var(--card-radius); }
+.card-label .title { font-family:'Orbitron',sans-serif; font-size:clamp(0.55rem, 1.2vw, 0.8rem); font-weight:600; letter-spacing:0.03em; color:var(--text-dark); text-shadow:0 1px 0 rgba(255,255,255,0.8); }
+.card-label .desc { font-size:clamp(0.45rem, 1vw, 0.65rem); color:var(--text-dim); font-weight:300; opacity:0; max-height:0; overflow:hidden; transition:opacity 0.3s ease, max-height 0.3s ease; }
+.card:hover .card-label .desc, .card.popping .card-label .desc { opacity:1; max-height:40px; }
+
+.vtag { position:absolute; top:clamp(6px, 1vw, 10px); right:clamp(6px, 1vw, 10px); z-index:4; width:clamp(20px, 3vw, 28px); height:clamp(20px, 3vw, 28px); border-radius:50%; background:rgba(255,255,255,0.7); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); border:1px solid rgba(180,170,210,0.3); display:flex; align-items:center; justify-content:center; }
+.vtag::after { content:''; width:0; height:0; border-left:clamp(5px, 1vw, 8px) solid var(--sky-blue); border-top:clamp(3px, 0.6vw, 5px) solid transparent; border-bottom:clamp(3px, 0.6vw, 5px) solid transparent; margin-left:2px; }
+
+/* 特效层 */
+#fxLayer { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:100; }
+.star-p { position:absolute; border-radius:50%; animation:starBurst 0.9s ease-out forwards; }
+@keyframes starBurst { 0%{transform:translate(-50%,-50%) scale(1);opacity:1} 100%{transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0);opacity:0} }
+.ring-w { position:absolute; border-radius:50%; animation:ringOut 0.8s ease-out forwards; transform:translate(-50%,-50%); }
+@keyframes ringOut { 0%{width:0;height:0;opacity:1} 100%{width:200vmax;height:200vmax;opacity:0} }
+.bg-ripple { position:absolute; border-radius:50%; border:2px solid rgba(150,130,200,0.35); animation:bgRipple 1.2s ease-out forwards; transform:translate(-50%,-50%); pointer-events:none; }
+@keyframes bgRipple { 0%{width:0;height:0;opacity:1} 100%{width:300vmax;height:300vmax;opacity:0} }
+
+/* 弹窗 */
+#modal { position:fixed; top:0; left:0; width:100%; height:100%; z-index:90; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity 0.4s ease; }
+#modal.show { opacity:1; pointer-events:auto; }
+#modal .backdrop { position:absolute; inset:0; background:rgba(255,245,250,0.7); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+#modal .panel { position:relative; max-width:90vw; max-height:85vh; width:min(90vw, 600px); border-radius:20px; overflow:hidden; background:rgba(255,255,255,0.7); backdrop-filter:blur(20px); box-shadow:0 24px 80px rgba(130,110,170,0.2); transform:scale(0.85); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+#modal.show .panel { transform:scale(1); }
+#modal .panel img, #modal .panel video { display:block; width:100%; max-height:55vh; object-fit:contain; }
+#modal .info { padding:16px 20px; }
+#modal .info h2 { font-family:'Orbitron',sans-serif; font-size:clamp(0.9rem, 2.5vw, 1.3rem); background:linear-gradient(135deg,var(--sky-blue),var(--rose-pink)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:4px; }
+#modal .info p { font-size:clamp(0.7rem, 1.5vw, 0.85rem); color:var(--text-dim); line-height:1.5; }
+#modal .close { position:absolute; top:12px; right:16px; width:clamp(30px, 5vw, 38px); height:clamp(30px, 5vw, 38px); border-radius:50%; background:rgba(255,255,255,0.7); border:1px solid rgba(180,170,210,0.3); color:var(--text-dark); font-size:clamp(0.9rem, 1.8vw, 1.1rem); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s ease; z-index:5; }
+#modal .close:hover { background:rgba(255,255,255,0.95); transform:scale(1.1); }
+
+/* 移动端触控提示 */
+@media (max-width:767px) {
+  #hud { top:20px; left:20px; }
+  #factionDots { top:22px; right:20px; gap:4px; }
+  .fdot-label { display:none; }
+  .card { width:140px; height:200px; }
+  #hint { bottom:30px; font-size:0.5rem; white-space:nowrap; }
+}
+</style>
+</head>
+<body>
+
+<audio id="bgMusic" src="music/Good Things.mp3" loop preload="auto"></audio>
+
+<canvas id="particleCanvas"></canvas>
+
+<div id="hud">
+  <div class="tag">Lumu 3D Ring</div>
+  <div class="main">橹 穆</div>
+</div>
+<div id="factionDots">
+  <span class="fdot b"></span>
+  <span class="fdot-label">蓝</span>
+  <span class="fdot p"></span>
+  <span class="fdot-label">粉</span>
+</div>
+<div id="hint">✦ 滑动转动星环 · 点击卡片爆闪 ✦</div>
+
+<div id="scene">
+  <div id="stage">
+    <div id="track"></div>
+  </div>
+</div>
+<div id="staticBG"></div>
+<div id="fxLayer"></div>
+
+<div id="modal">
+  <div class="backdrop"></div>
+  <div class="panel">
+    <button class="close">&times;</button>
+    <div class="modal-media"></div>
+    <div class="info"><h2></h2><p></p></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   [1] 媒体数据
+   ============================================================ */
+const mediaData = [
+  { type:'image', src:'image/1.jpg', title:'紧张吗?\n有点',   description:'一个人的暗恋成了两个人的兵荒马乱' },
+  { type:'image', src:'image/2.jpg', title:'copy我?\n那又怎样~',   description:'隐秘的偏爱。' },
+  { type:'image', src:'image/3.jpg', title:'我嘞个豆',   description:'细水长流的默契。' },
+  { type:'video', src:'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', title:'',   description:'' },
+  { type:'image', src:'image/4.jpg', title:'会喜欢笨小孩吗?\n咴啊',   description:'夜幕前最后一抹粉色。' },
+  { type:'image', src:'image/32.jpg', title:'祝你星途璀璨',   description:'少年的真心低过千军万马。' },
+  { type:'video', src:'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', title:'',   description:'' },
+  { type:'image', src:'image/36.jpg', title:'落叶知秋，还以为你不说再见就走了',   description:'蓝与粉在舌尖融化。' },
+  { type:'image', src:'image/42.jpg', title:'幸福降临我们手心',   description:'蓝粉极光架起天空之桥。' },
+  { type:'video', src:'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', title:'',   description:'' }
+];
+const TOTAL = mediaData.length;
+
+/* ============================================================
+   [2] 响应式工具函数
+   ============================================================ */
+let isMobile = innerWidth < 768;
+
+/* ============================================================
+   [3] 卡片 3D 轨道配置
+   ============================================================ */
+const cardConfigs = [];
+for (let i = 0; i < TOTAL; i++) {
+  const seed = (i * 7 + 13) % 100;
+  // 手机上缩小半径和偏移
+  const isM = isMobile;
+  cardConfigs.push({
+    radius:  (isM ? 180 : 350) + (seed * 1.7) % (isM ? 60 : 120),
+    yOffset: (isM ? -160 : -220) + (seed * 2.3) % (isM ? 80 : 120),
+    rotX:    -20 + (seed * 5.1) % 40,
+    rotY:    -10 + (seed * 2.7) % 20,
+    rotZ:    -12 + (seed * 3.3) % 24,
+    phase:   (i / TOTAL) * Math.PI * 2
+  });
+}
+
+let rotationAngle = 0, isDragging = false, dragPrevX = 0, dragVelocity = 0;
+let renderedCards = [], videoEls = [], satelliteEls = [], stageEl, trackEl;
+
+/* ============================================================
+   [4] 构建画廊
+   ============================================================ */
+function buildGallery() {
+  stageEl = document.getElementById('stage');
+  trackEl = document.getElementById('track');
+  trackEl.innerHTML = '';
+
+  for (let i = 0; i < TOTAL; i++) {
+    const item = mediaData[i], cfg = cardConfigs[i];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.idx = i;
+    card.innerHTML = `
+      <div class="card-border"></div>
+      <div class="card-body">
+        <div class="card-media">${item.type==='image'?`<img src="${item.src}" alt="${item.title}" loading="lazy" draggable="false">`:`<video src="${item.src}" muted loop playsinline preload="metadata" draggable="false"></video>`}</div>
+        <div class="card-label"><div class="title">${item.title}</div><div class="desc">${item.description}</div></div>
+        ${item.type==='video'?'<div class="vtag"></div>':''}
+      </div>`;
+    card.addEventListener('click', e => onCardClick(e, card, item));
+    trackEl.appendChild(card);
+  }
+
+  renderedCards = Array.from(trackEl.querySelectorAll('.card'));
+  videoEls      = Array.from(trackEl.querySelectorAll('video'));
+  buildSatellites();
+  updatePositions();
+}
+
+/* ============================================================
+   [5] 装饰小卫星（网格法防重叠，从主媒体中取图片）
+   ============================================================ */
+const SATELLITE_COUNT = 48;
+function buildSatellites() {
+  const bg = document.getElementById('staticBG');
+  bg.innerHTML = '';
+  const vw = innerWidth, vh = innerHeight;
+  const isM = isMobile;
+  const cols = 8;
+  const rows = 7;
+  const cellW = vw / cols, cellH = vh / rows;
+  const skipCS = Math.floor(cols/2)-1, skipCE = skipCS+1;
+  const skipRS = Math.floor(rows/2)-1, skipRE = skipRS+1;
+
+  // 读取 image/ 文件夹中的 48 张图片（1.jpg ~ 48.jpg）
+  const satImages = [];
+  for (let i = 1; i <= 48; i++) {
+    satImages.push(`image/${i}.jpg`);
+  }
+
+  let placed = 0;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (c >= skipCS && c <= skipCE && r >= skipRS && r <= skipRE) continue;
+      if (placed >= satImages.length) break;
+
+      const src = satImages[placed];
+
+      const sat = document.createElement('div');
+      sat.className = 'satellite';
+      const w = (isM ? 22 : 38) + (placed * 7) % (isM ? 20 : 34);
+      const h = (isM ? 22 : 38) + (placed * 11) % (isM ? 20 : 34);
+      sat.style.width = Math.round(w)+'px';
+      sat.style.height = Math.round(h)+'px';
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.loading = 'lazy'; img.draggable = false;
+      sat.appendChild(img);
+
+      const margin = isM ? 4 : 8;
+      const ox = margin + Math.random() * (cellW - w - margin*2);
+      const oy = margin + Math.random() * (cellH - h - margin*2);
+      sat.style.left = (c*cellW+ox)+'px';
+      sat.style.top  = (r*cellH+oy)+'px';
+      sat.style.opacity = 0.18 + Math.random() * 0.36;
+      // 小卫星点击事件
+      sat.addEventListener('click', function(e) {
+        e.stopPropagation();
+        sat.classList.remove('popping');
+        void sat.offsetWidth;
+        sat.classList.add('popping');
+        const rect = sat.getBoundingClientRect();
+        spawnBurst(rect.left+rect.width/2, rect.top+rect.height/2);
+        // 延迟弹窗显示大图
+        setTimeout(() => {
+          sat.classList.remove('popping');
+          showModal({ type:'image', src: src, title: '', description: '' });
+        }, 850);
+      });
+
+      bg.appendChild(sat);
+      placed++;
+    }
+  }
+  satelliteEls = Array.from(bg.querySelectorAll('.satellite'));
+}
+
+/* ============================================================
+   [6] 3D 位置更新
+   ============================================================ */
+function updatePositions() {
+  renderedCards.forEach((card, i) => {
+    const cfg = cardConfigs[i];
+    const angle = rotationAngle + cfg.phase;
+    const x = Math.sin(angle) * cfg.radius;
+    const z = Math.cos(angle) * cfg.radius;
+    const y = cfg.yOffset;
+    const facingY = -angle * 180 / Math.PI;
+    const transform = `translate3d(${x}px, ${y}px, ${z}px) rotateX(${cfg.rotX}deg) rotateY(${facingY + cfg.rotY}deg) rotateZ(${cfg.rotZ}deg)`;
+    if (!card.dataset.origTransform) card.dataset.origTransform = transform;
+    if (!card.classList.contains('popping')) card.style.transform = transform;
+    const zNorm = (z + 500) / 1000;
+    const brightness = 0.45 + zNorm * 0.55;
+    card.style.filter = `brightness(${brightness}) blur(${(1-zNorm)*2}px)`;
+    card.style.opacity = 0.4 + zNorm * 0.6;
+    card.style.zIndex = Math.round(zNorm * 100);
+  });
+}
+
+/* ============================================================
+   [7] 旋转驱动
+   ============================================================ */
+let autoSpeed = 0.0025, lt = performance.now();
+function loop(ts) {
+  const dt = Math.min(ts-lt,50); lt=ts;
+  if (!isDragging) {
+    if (Math.abs(dragVelocity) > 0.0001) { rotationAngle+=dragVelocity; dragVelocity*=0.96; }
+    else rotationAngle += autoSpeed;
+  }
+  updatePositions();
+  checkActiveVideo();
+  requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   [8] 拖拽（鼠标 + 触控）
+   ============================================================ */
+function setupDrag() {
+  const getX = e => e.touches ? e.touches[0].clientX : e.clientX;
+  const onStart = e => {
+    if (e.target.closest('.card')) return;
+    isDragging = true;
+    dragPrevX = getX(e);
+    dragVelocity = 0;
+  };
+  const onMove = e => {
+    if (!isDragging) return;
+    const x = getX(e);
+    const dx = x - dragPrevX;
+    dragPrevX = x;
+    rotationAngle += dx * 0.006;
+    dragVelocity = dx * 0.006;
+  };
+  const onEnd = () => { isDragging = false; };
+
+  stageEl.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onEnd);
+  stageEl.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchmove', onMove, {passive:true});
+  document.addEventListener('touchend', onEnd);
+}
+
+/* ============================================================
+   [9] 鼠标视差（PC 专用，手机关闭避免抖动）
+   ============================================================ */
+function setupParallax() {
+  if (isMobile) return;
+  const scene = document.getElementById('scene');
+  document.addEventListener('mousemove', e => {
+    const nx = (e.clientX/innerWidth)*2-1, ny = (e.clientY/innerHeight)*2-1;
+    scene.style.perspectiveOrigin = `${50+nx*10}% ${50+ny*8}%`;
+  });
+}
+
+/* ============================================================
+   [10] 视频播放控制
+   ============================================================ */
+function checkActiveVideo() {
+  const cx = innerWidth/2;
+  let best = null, bestD = Infinity;
+  renderedCards.forEach(card => {
+    const rect = card.getBoundingClientRect();
+    const d = Math.abs(rect.left+rect.width/2-cx);
+    if (d < bestD) { bestD = d; best = card; }
+  });
+  videoEls.forEach(v => {
+    const c = v.closest('.card');
+    if (c === best && v.paused) { v.currentTime=0; v.play().catch(()=>{}); }
+    else if (c !== best && !v.paused) v.pause();
+  });
+}
+
+/* ============================================================
+   [11] 点击卡片
+   ============================================================ */
+function onCardClick(e, card, item) {
+  e.stopPropagation();
+  card.dataset.origTransform = card.style.transform;
+  renderedCards.forEach(c => { if(c!==card) c.classList.add('dimmed'); });
+  card.classList.remove('popping');
+  void card.offsetWidth;
+  card.classList.add('popping');
+  const rect = card.getBoundingClientRect();
+  spawnBurst(rect.left+rect.width/2, rect.top+rect.height/2);
+  setTimeout(() => {
+    card.classList.remove('popping');
+    renderedCards.forEach(c => c.classList.remove('dimmed'));
+    showModal(item);
+  }, 950);
+}
+
+function spawnBurst(cx, cy) {
+  const l = document.getElementById('fxLayer');
+  for (let i=0;i<3;i++) {
+    const r = document.createElement('div');
+    r.className = 'ring-w';
+    r.style.left=cx+'px'; r.style.top=cy+'px';
+    r.style.borderColor=i%2===0?'rgba(91,184,240,0.6)':'rgba(247,168,196,0.6)';
+    r.style.animationDelay=(i*0.1)+'s';
+    l.appendChild(r);
+    setTimeout(()=>r.remove(),1200);
+  }
+  for (let i=0;i<50;i++) {
+    const angle = Math.PI*2*i/50+(Math.random()-0.5)*0.25;
+    const dist = 40+Math.random()*140;
+    const p = document.createElement('div');
+    p.className = 'star-p';
+    p.style.left=cx+'px'; p.style.top=cy+'px';
+    p.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
+    p.style.setProperty('--dy', (Math.sin(angle)*dist)+'px');
+    p.style.width=p.style.height=(2+Math.random()*4)+'px';
+    p.style.background=`hsl(${i%2===0?210:340},75%,68%)`;
+    p.style.boxShadow=`0 0 ${4+Math.random()*4}px hsl(${i%2===0?210:340},80%,70%)`;
+    p.style.animationDelay=(Math.random()*0.25)+'s';
+    l.appendChild(p);
+    setTimeout(()=>p.remove(),1300);
+  }
+}
+
+/* ============================================================
+   [12] 背景点击涟漪
+   ============================================================ */
+function setupBgRipple() {
+  const scene = document.getElementById('scene');
+  const handler = e => {
+    if (e.target.closest('.card')||e.target.closest('#modal')) return;
+    const l=document.getElementById('fxLayer');
+    const cl = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    const ct = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    for(let i=0;i<3;i++){const r=document.createElement('div');r.className='bg-ripple';r.style.left=cl+'px';r.style.top=ct+'px';r.style.borderColor=i%2===0?'rgba(91,184,240,0.25)':'rgba(247,168,196,0.25)';r.style.animationDelay=(i*0.15)+'s';l.appendChild(r);setTimeout(()=>r.remove(),1500);}
+  };
+  scene.addEventListener('click', handler);
+  scene.addEventListener('touchstart', handler, {passive:true});
+}
+
+/* ============================================================
+   [13] 弹窗
+   ============================================================ */
+function showModal(item) {
+  const m=document.getElementById('modal');
+  m.querySelector('.modal-media').innerHTML=item.type==='image'?`<img src="${item.src}" alt="${item.title}" draggable="false">`:`<video src="${item.src}" controls autoplay loop playsinline style="width:100%;max-height:55vh;"></video>`;
+  m.querySelector('.info h2').textContent=item.title;
+  m.querySelector('.info p').textContent=item.description;
+  m.classList.add('show');
+}
+function setupModal() {
+  const m=document.getElementById('modal');
+  const close=()=>{m.classList.remove('show');const v=m.querySelector('video');if(v)v.pause();};
+  m.querySelector('.close').addEventListener('click',close);
+  m.querySelector('.backdrop').addEventListener('click',close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+}
+
+/* ============================================================
+   [14] 粒子背景（减少手机粒子数）
+   ============================================================ */
+function setupParticles() {
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  const count = isMobile ? 35 : 70;
+  let W,H, particles=[];
+  function resize() { W=canvas.width=innerWidth; H=canvas.height=innerHeight; }
+  resize(); addEventListener('resize', resize);
+  const hues = [200,210,220,340,350,280,290];
+  class P {
+    constructor() { this.reset(true); }
+    reset(init) { this.x=Math.random()*W;this.y=init?Math.random()*H:(Math.random()<.5?-20:H+20);this.vx=(Math.random()-.5)*.35;this.vy=-Math.random()*.28-.03;this.r=Math.random()*(isMobile?1.5:2)+.4;this.ba=Math.random()*.25+.05;this.ts=Math.random()*.01+.003;this.to=Math.random()*Math.PI*2;this.hue=hues[Math.floor(Math.random()*hues.length)]; }
+    update() { this.x+=this.vx;this.y+=this.vy;if(this.x<-20)this.x=W+20;if(this.x>W+20)this.x=-20;if(this.y<-20)this.y=H+20;if(this.y>H+20)this.y=-20; }
+    draw(t) { const tw=Math.sin(t*this.ts+this.to)*.25+.75,a=this.ba*tw; ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`hsla(${this.hue},65%,72%,${a})`;ctx.fill();ctx.beginPath();ctx.arc(this.x,this.y,this.r*3,0,Math.PI*2);ctx.fillStyle=`hsla(${this.hue},55%,78%,${a*.18})`;ctx.fill(); }
+  }
+  for(let i=0;i<count;i++) particles.push(new P());
+  function drawConn() { const md=isMobile?60:100; for(let i=0;i<particles.length;i++) for(let j=i+1;j<particles.length;j++) { const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy); if(d<md){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`hsla(230,50%,70%,${(1-d/md)*.05})`;ctx.lineWidth=.3;ctx.stroke();} } }
+  function anim(t) { ctx.clearRect(0,0,W,H); particles.forEach(p=>{p.update();p.draw(t);}); drawConn(); requestAnimationFrame(anim); }
+  requestAnimationFrame(anim);
+}
+
+/* ============================================================
+   [15] 闪闪星尘 + 飘落白羽（结婚氛围）
+   ============================================================ */
+function setupSparkles() {
+  const hues = [200, 210, 220, 300, 340];
+  const count = isMobile ? 25 : 50;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'sparkle';
+    const hue = hues[Math.floor(Math.random() * hues.length)];
+    const size = 2 + Math.random() * 5;
+    el.style.width = size + 'px'; el.style.height = size + 'px';
+    el.style.background = `hsla(${hue}, 80%, 75%, 0.8)`;
+    el.style.boxShadow = `0 0 ${size*2}px hsla(${hue}, 80%, 70%, 0.6)`;
+    el.style.left = 2 + Math.random() * 96 + '%';
+    el.style.top  = 2 + Math.random() * 96 + '%';
+    el.style.setProperty('--dur', (1.5 + Math.random() * 2.5) + 's');
+    el.style.animationDelay = (Math.random() * 3) + 's';
+    document.body.appendChild(el);
+  }
+}
+
+function setupPetals() {
+  const count = isMobile ? 15 : 30;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'petal';
+    const w = 8 + Math.random() * 12;
+    const h = 12 + Math.random() * 16;
+    el.style.setProperty('--pw', w + 'px');
+    el.style.setProperty('--ph', h + 'px');
+    el.style.left = 2 + Math.random() * 96 + '%';
+    el.style.setProperty('--dur', (6 + Math.random() * 8) + 's');
+    el.style.animationDelay = (Math.random() * 6) + 's';
+    el.style.opacity = 0.2 + Math.random() * 0.3;
+    document.body.appendChild(el);
+  }
+}
+
+/* ============================================================
+   [16] 键盘
+   ============================================================ */
+function setupKeys() {
+  document.addEventListener('keydown', e => {
+    switch(e.key.toLowerCase()) {
+      case'arrowleft':rotationAngle-=0.15;break;
+      case'arrowright':rotationAngle+=0.15;break;
+    }
+  });
+}
+
+/* ============================================================
+   [16] Resize 重算
+   ============================================================ */
+function setupResize() {
+  let timer;
+  addEventListener('resize', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      location.reload(); // 简单粗暴：尺寸变化后刷新配置
+    }, 500);
+  });
+}
+
+/* ============================================================
+   [17] 启动
+   ============================================================ */
+function init() {
+  buildGallery();
+  setupParticles();
+  setupDrag();
+  setupParallax();
+  setupModal();
+  setupBgRipple();
+  setupSparkles();  // 闪闪星光
+  setupPetals();    // 飘落白羽
+  setupKeys();
+  setupResize();
+
+  // ★ 自动播放背景音乐（用户首次交互时）
+  const audio = document.getElementById('bgMusic');
+  const tryPlay = () => {
+    audio.play().then(() => {
+      document.removeEventListener('click', tryPlay);
+      document.removeEventListener('touchstart', tryPlay);
+    }).catch(() => {});
+  };
+  // 浏览器自动播放策略要求用户交互，首次点击页面时触发
+  document.addEventListener('click', tryPlay);
+  document.addEventListener('touchstart', tryPlay);
+  // 同时尝试直接播放（某些浏览器可能允许）
+  audio.play().catch(() => {});
+
+  setTimeout(() => { const h = document.getElementById('hint'); if (h) h.style.opacity = '0'; }, 6000);
+  requestAnimationFrame(loop);
+  console.log('%c💙 橹穆 · 3D 星环 %c已就绪','font-size:16px;color:#5bb8f0;','font-size:12px;color:#aaa;');
+  console.log('%c🎵 背景音乐：来自天堂的魔鬼','color:#f47aad;');
+}
+init();
+</script>
+</body>
+</html>
