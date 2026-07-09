@@ -171,8 +171,6 @@ body::before {
 <body>
 
 <audio id="bgMusic" src="music/GoodThings.mp3" autoplay loop preload="auto" style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1"></audio>
-<!-- 背景音乐脚本已合并到主 script 中 -->
-<!-- ⚠️ 不要删除此注释 -->
 <canvas id="particleCanvas"></canvas>
 
 <div id="hud">
@@ -617,23 +615,26 @@ function init() {
   setTimeout(() => { const h = document.getElementById('hint'); if (h) h.style.opacity = '0'; }, 6000);
   requestAnimationFrame(loop);
   console.log('%c💙 橹穆 · 3D 星环 %c已就绪','font-size:16px;color:#5bb8f0;','font-size:12px;color:#aaa;');
+}
+init();
 
-  // ★ 背景音乐：静音自动播放 + 首次交互取消静音
-  // ★ 背景音乐：自动播放
+// ★ 背景音乐：页面加载后直接自动播放
+(function() {
   const bgm = document.getElementById('bgMusic');
-
   bgm.volume = 0.3;
   bgm.loop = true;
   bgm.muted = false;
-
-  bgm.play().
-  then(() => {
-      console.log("🎵 背景音乐已自动播放");
-  })
-  .catch(err => {
-      console.error("背景音乐播放失败：", err);});
-  }
-init();
+  bgm.play().then(function() {
+    console.log('🎵 背景音乐已自动播放');
+  }).catch(function(err) {
+    console.error('背景音乐自动播放失败：', err);
+  });
+})();
 </script>
 </body>
+</html>
+
+</body>
+</html>
+
 </html>
