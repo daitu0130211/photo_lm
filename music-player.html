@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音乐播放器</title>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+/* ============================================================
+   播放器容器 —— 无拖拽指示，保留所有交互
+   ============================================================ */
+#musicPlayer {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 28px;
+  padding: 8px 16px 8px 10px;
+  border: 1px solid rgba(180,170,210,0.25);
+  box-shadow: 0 4px 20px rgba(130,110,170,0.1);
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  transition: all 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#musicPlayer:hover {
+  background: rgba(255,255,255,0.55);
+  border-color: rgba(180,170,210,0.4);
+}
+
+/* ---- 播放/暂停按钮 ---- */
+.mp-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(180,170,210,0.3);
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s ease;
+  color: #4a3590;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.mp-btn:hover {
+  background: rgba(255,255,255,0.8);
+  border-color: rgba(150,130,200,0.5);
+  box-shadow: 0 0 12px rgba(150,130,200,0.2);
+}
+
+/* ---- 歌曲信息 ---- */
+.mp-info {
+  display: flex; flex-direction: column;
+  min-width: 120px; max-width: 200px;
+}
+.mp-song {
+  font-size: 0.7rem; font-weight: 600;
+  color: #3a3050;
+  letter-spacing: 0.03em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mp-artist {
+  font-size: 0.55rem; font-weight: 300;
+  color: rgba(60,50,80,0.5);
+  letter-spacing: 0.05em;
+}
+
+/* ---- 控制按钮组 ---- */
+.mp-controls {
+  display: flex; gap: 4px; flex-shrink: 0;
+}
+.mp-ctrl {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(60,50,80,0.5);
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+.mp-ctrl:hover { color: #3a3050; background: rgba(255,255,255,0.4); }
+.mp-ctrl.active { color: #5bb8f0; }
+
+/* ---- 音量滑块 ---- */
+.mp-volume-wrap {
+  display: flex; align-items: center; gap: 4px;
+}
+.mp-volume {
+  width: 60px; height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(90deg, var(--sky-blue,#5bb8f0), var(--rose-pink,#f47aad));
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.mp-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid rgba(150,130,200,0.4);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+/* ---- 波形动画条 ---- */
+.mp-visualizer {
+  display: flex; align-items: flex-end; gap: 2px; height: 20px;
+}
+.mp-bar {
+  width: 3px;
+  background: linear-gradient(180deg, var(--sky-blue,#5bb8f0), var(--rose-pink,#f47aad));
+  border-radius: 2px;
+  transition: height 0.15s ease;
+}
+
+/* ---- 媒体查询：移动端缩小 ---- */
+@media (max-width: 767px) {
+  #musicPlayer {
+    top: 12px; right: 8px;
+    gap: 6px;
+    padding: 6px 10px 6px 6px;
+    border-radius: 20px;
+  }
+  .mp-btn { width: 28px; height: 28px; font-size: 11px; }
+  .mp-info { min-width: 70px; max-width: 110px; }
+  .mp-song { font-size: 0.6rem; }
+  .mp-artist { font-size: 0.5rem; }
+  .mp-ctrl { width: 22px; height: 22px; font-size: 10px; }
+  .mp-volume { width: 40px; }
+  .mp-visualizer { height: 14px; gap: 1px; }
+}
+</style>
+</head>
+<body>
+
+<div id="musicPlayer">
+  <!-- 播放/暂停 -->
+  <button class="mp-btn" id="mpPlayBtn" title="播放 / 暂停">▶</button>
+
+  <!-- 歌曲信息 -->
+  <div class="mp-info">
+    <div class="mp-song" id="mpSong">Good Things</div>
+    <div class="mp-artist" id="mpArtist">橹穆</div>
+  </div>
+
+  <!-- 上一首 / 下一首 / 循环模式 -->
+  <div class="mp-controls">
+    <button class="mp-ctrl" id="mpPrev" title="上一首">⏮</button>
+    <button class="mp-ctrl" id="mpNext" title="下一首">⏭</button>
+    <button class="mp-ctrl" id="mpMode" title="循环模式">🔁</button>
+  </div>
+
+  <!-- 音量 -->
+  <div class="mp-volume-wrap">
+    <span style="font-size:10px;color:rgba(60,50,80,0.4);">🔊</span>
+    <input type="range" class="mp-volume" id="mpVolume" min="0" max="100" value="30">
+  </div>
+
+  <!-- 波形可视化 -->
+  <div class="mp-visualizer" id="mpVisualizer">
+    <div class="mp-bar" style="height:6px"></div>
+    <div class="mp-bar" style="height:12px"></div>
+    <div class="mp-bar" style="height:8px"></div>
+    <div class="mp-bar" style="height:16px"></div>
+    <div class="mp-bar" style="height:10px"></div>
+    <div class="mp-bar" style="height:14px"></div>
+    <div class="mp-bar" style="height:6px"></div>
+    <div class="mp-bar" style="height:18px"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   音乐播放器 —— 独立 JS 引擎
+   ============================================================ */
+
+// ★ 播放列表（从 music/ 文件夹读取）
+const playlist = [
+  { title: 'Good Things', artist: 'NINE PERCENT', src: 'music/GoodThings.mp3' },
+  { title: '来自天堂的魔鬼', artist: '穆祉丞 · 王橹杰', src: 'music/穆祉丞王橹杰-来自天堂的魔鬼.ogg' }
+];
+
+// ★ 播放模式：'loop' = 列表循环 | 'random' = 随机播放
+let playMode = 'loop';
+let currentIndex = 0;
+let isPlaying = false;
+let volume = 0.3;
+
+// ★ 创建 audio 元素
+const audio = new Audio();
+audio.volume = volume;
+audio.preload = 'auto';
+
+// ★ DOM 引用
+const playBtn  = document.getElementById('mpPlayBtn');
+const songEl   = document.getElementById('mpSong');
+const artistEl = document.getElementById('mpArtist');
+const prevBtn  = document.getElementById('mpPrev');
+const nextBtn  = document.getElementById('mpNext');
+const modeBtn  = document.getElementById('mpMode');
+const volumeSlider = document.getElementById('mpVolume');
+const visBars  = Array.from(document.querySelectorAll('.mp-bar'));
+
+// ★ 加载指定索引的歌曲
+function loadTrack(index) {
+  const track = playlist[index];
+  audio.src = track.src;
+  songEl.textContent = track.title;
+  artistEl.textContent = track.artist;
+  audio.load();
+}
+
+// ★ 播放
+function play() {
+  audio.play().then(() => {
+    isPlaying = true;
+    playBtn.textContent = '⏸';
+  }).catch(err => {
+    console.error('播放失败:', err);
+  });
+}
+
+// ★ 暂停
+function pause() {
+  audio.pause();
+  isPlaying = false;
+  playBtn.textContent = '▶';
+}
+
+// ★ 切换播放/暂停
+function togglePlay() {
+  if (isPlaying) {
+    pause();
+  } else {
+    play();
+  }
+}
+
+// ★ 下一首
+function nextTrack() {
+  if (playMode === 'random') {
+    let idx;
+    do { idx = Math.floor(Math.random() * playlist.length); }
+    while (idx === currentIndex && playlist.length > 1);
+    currentIndex = idx;
+  } else {
+    currentIndex = (currentIndex + 1) % playlist.length;
+  }
+  loadTrack(currentIndex);
+  if (isPlaying) play();
+}
+
+// ★ 上一首
+function prevTrack() {
+  if (playMode === 'random') {
+    let idx;
+    do { idx = Math.floor(Math.random() * playlist.length); }
+    while (idx === currentIndex && playlist.length > 1);
+    currentIndex = idx;
+  } else {
+    currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+  }
+  loadTrack(currentIndex);
+  if (isPlaying) play();
+}
+
+// ★ 切换循环 / 随机模式
+function toggleMode() {
+  playMode = playMode === 'loop' ? 'random' : 'loop';
+  modeBtn.textContent = playMode === 'loop' ? '🔁' : '🔀';
+  modeBtn.classList.toggle('active', playMode === 'random');
+}
+
+// ★ 音量控制
+function setVolume(val) {
+  volume = val / 100;
+  audio.volume = volume;
+}
+
+// ★ 波形动画（模拟）
+let visTimer = null;
+function startVisualizer() {
+  if (visTimer) clearInterval(visTimer);
+  visTimer = setInterval(() => {
+    if (!isPlaying) {
+      visBars.forEach(b => b.style.height = (2 + Math.random() * 4) + 'px');
+      return;
+    }
+    visBars.forEach(b => {
+      b.style.height = (4 + Math.random() * 16) + 'px';
+    });
+  }, 150);
+}
+
+// ★ 启动播放器
+function initPlayer() {
+  loadTrack(0);
+  startVisualizer();
+
+  // ── 事件绑定 ──
+  playBtn.addEventListener('click', togglePlay);
+  prevBtn.addEventListener('click', prevTrack);
+  nextBtn.addEventListener('click', nextTrack);
+  modeBtn.addEventListener('click', toggleMode);
+  volumeSlider.addEventListener('input', e => setVolume(e.target.value));
+
+  // 播放结束后自动跳到下一首
+  audio.addEventListener('ended', nextTrack);
+
+  // 键盘快捷键：空格播放/暂停
+  document.addEventListener('keydown', e => {
+    if (e.key === ' ' && e.target === document.body) {
+      e.preventDefault();
+      togglePlay();
+    }
+  });
+
+  // ★ 自动播放
+  audio.play().then(() => {
+    isPlaying = true;
+    playBtn.textContent = '⏸';
+    console.log('🎵 音乐已自动播放');
+  }).catch(() => {
+    console.log('🎵 需要用户手势');
+  });
+
+console.log('🎵 音乐播放器已就绪 | 播放列表:', playlist.length + ' 首歌曲');
+  console.log('   当前模式:', playMode === 'loop' ? '列表循环' : '随机播放');
+}
+
+// ── 启动 ──
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPlayer);
+} else {
+  initPlayer();
+}
+</script>
+</body>
+</html>
