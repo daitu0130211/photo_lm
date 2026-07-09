@@ -170,8 +170,9 @@ body::before {
 </head>
 <body>
 
-<audio id="bgMusic" src="music/Good Things.mp3" loop preload="auto"></audio>
-
+<audio id="bgMusic" src="music/GoodThings.mp3" autoplay loop preload="auto" style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1"></audio>
+<!-- 背景音乐脚本已合并到主 script 中 -->
+<!-- ⚠️ 不要删除此注释 -->
 <canvas id="particleCanvas"></canvas>
 
 <div id="hud">
@@ -246,6 +247,7 @@ for (let i = 0; i < TOTAL; i++) {
 
 let rotationAngle = 0, isDragging = false, dragPrevX = 0, dragVelocity = 0;
 let renderedCards = [], videoEls = [], satelliteEls = [], stageEl, trackEl;
+let cardW = 200, cardGap = 44, totalOrigW = 0;
 
 /* ============================================================
    [4] 构建画廊
@@ -599,20 +601,7 @@ function setupKeys() {
 }
 
 /* ============================================================
-   [16] Resize 重算
-   ============================================================ */
-function setupResize() {
-  let timer;
-  addEventListener('resize', () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      location.reload(); // 简单粗暴：尺寸变化后刷新配置
-    }, 500);
-  });
-}
-
-/* ============================================================
-   [17] 启动
+   [16] 启动
    ============================================================ */
 function init() {
   buildGallery();
@@ -624,27 +613,26 @@ function init() {
   setupSparkles();  // 闪闪星光
   setupPetals();    // 飘落白羽
   setupKeys();
-  setupResize();
-
-  // ★ 自动播放背景音乐（用户首次交互时）
-  const audio = document.getElementById('bgMusic');
-  const tryPlay = () => {
-    audio.play().then(() => {
-      document.removeEventListener('click', tryPlay);
-      document.removeEventListener('touchstart', tryPlay);
-    }).catch(() => {});
-  };
-  // 浏览器自动播放策略要求用户交互，首次点击页面时触发
-  document.addEventListener('click', tryPlay);
-  document.addEventListener('touchstart', tryPlay);
-  // 同时尝试直接播放（某些浏览器可能允许）
-  audio.play().catch(() => {});
 
   setTimeout(() => { const h = document.getElementById('hint'); if (h) h.style.opacity = '0'; }, 6000);
   requestAnimationFrame(loop);
   console.log('%c💙 橹穆 · 3D 星环 %c已就绪','font-size:16px;color:#5bb8f0;','font-size:12px;color:#aaa;');
-  console.log('%c🎵 背景音乐：来自天堂的魔鬼','color:#f47aad;');
-}
+
+  // ★ 背景音乐：静音自动播放 + 首次交互取消静音
+  // ★ 背景音乐：自动播放
+  const bgm = document.getElementById('bgMusic');
+
+  bgm.volume = 0.3;
+  bgm.loop = true;
+  bgm.muted = false;
+
+  bgm.play().
+  then(() => {
+      console.log("🎵 背景音乐已自动播放");
+  })
+  .catch(err => {
+      console.error("背景音乐播放失败：", err);});
+  }
 init();
 </script>
 </body>
