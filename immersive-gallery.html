@@ -317,11 +317,96 @@ body::before {
   color: rgba(60,50,80,0.4);
   font-weight: 300;
 }
+
+/* ============================================================
+   开场视频全屏动画
+   ============================================================ */
+#splashVideo {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 9999;
+  object-fit: cover;
+  background: #000;
+}
+#splashOverlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  opacity: 0;
+  transition: opacity 1s ease;
+  pointer-events: none;
+}
+#splashOverlay.show { opacity: 1; }
+#splashOverlay .text {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 3vw;
+  letter-spacing: 0.12em;
+  background: linear-gradient(135deg, var(--sky-blue), var(--rose-pink));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  transform: translateY(20px);
+  animation: splashRise 1.2s ease-out forwards;
+}
+#splashOverlay .sub {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 300;
+  font-size: 1.2vw;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.3em;
+  margin-top: 12px;
+  transform: translateY(20px);
+  animation: splashRise 1.2s ease-out 0.3s forwards;
+  opacity: 0;
+}
+@keyframes splashRise {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.splash-hint {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  font-size: 1.1vw;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 0.2em;
+  padding: 12px 28px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 30px;
+  background: rgba(255,255,255,0.08);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: splashPulse 1.5s ease-in-out infinite;
+  white-space: nowrap;
+}
+.splash-hint:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.5);
+}
+@keyframes splashPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+#splashOverlay.started .splash-hint { display: none; }
 </style>
 </head>
 <body>
 
 <!-- ★ 背景音乐由 music-player.html 独立管理 -->
+
+<!-- ★ 开场全屏视频 -->
+<video id="splashVideo" src="wlj.mp4" playsinline preload="auto"></video>
+<div id="splashOverlay">
+  <div class="text">橹 穆</div>
+  <div class="sub">ANGEL × DEMON</div>
+  <div class="splash-hint">点击屏幕开始 ▶</div>
+</div>
 
 <!-- ★ 音乐播放器（嵌入） -->
 <div id="musicPlayer">
@@ -791,9 +876,73 @@ function init() {
   setupPetals();
   setupKeys();
 
-  setTimeout(() => { const h = document.getElementById('hint'); if (h) h.style.opacity = '0'; }, 6000);
-  requestAnimationFrame(loop);
-  console.log('%c💙 橹穆 · 3D 星环 %c已就绪','font-size:16px;color:#5bb8f0;','font-size:12px;color:#aaa;');
+  // ★ 开场视频控制 - 等待视频播放结束后再进入主页面
+  var splashVideo = document.getElementById('splashVideo');
+  var splashOverlay = document.getElementById('splashOverlay');
+  var splashHint = splashOverlay.querySelector('.splash-hint');
+
+  // 进入主页面的函数
+  function enterMainPage() {
+    splashVideo.style.transition = 'opacity 1.2s ease';
+    splashVideo.style.opacity = '0';
+    splashOverlay.style.transition = 'opacity 1s ease';
+    splashOverlay.style.opacity = '0';
+    // 完全隐藏后启动主场景
+    setTimeout(function() {
+      splashVideo.style.display = 'none';
+      splashOverlay.style.display = 'none';
+      splashVideo.pause();
+      requestAnimationFrame(loop);
+      console.log('%c💙 橹穆 · 3D 星环 %c已就绪','font-size:16px;color:#5bb8f0;','font-size:12px;color:#aaa;');
+    }, 1200);
+  }
+
+  // 监听视频播放结束事件
+  splashVideo.addEventListener('ended', enterMainPage);
+
+  // 点击屏幕或视频点击都可以开始播放
+  function startSplash() {
+    splashOverlay.classList.add('started');
+    splashOverlay.classList.add('show');
+    splashVideo.play().then(function() {
+      // 播放成功，等待视频播放完自动进入主页面
+    }).catch(function(err) {
+      // 如果播放失败，直接进入主页面
+      console.log('视频无法播放，直接进入:', err);
+      setTimeout(enterMainPage, 500);
+    });
+  }
+
+  // 先显示标题和提示
+  splashOverlay.classList.add('show');
+
+  // 尝试静音自动播放（很多浏览器仅支持静音自动播放）
+  splashVideo.muted = true;
+  splashVideo.play().then(function() {
+    // 静音自动播放成功，显示标题，但不显示提示按钮
+    splashOverlay.classList.add('started');
+    // 等1.5秒后解除静音（给浏览器时间处理静音自动播放确认）
+    setTimeout(function() {
+      try { splashVideo.muted = false; } catch(e) {}
+    }, 100);
+  }).catch(function() {
+    // 自动播放失败，显示提示按钮，等待用户点击
+    splashVideo.muted = false;
+  });
+
+  // 用户点击屏幕开始播放（带声音）
+  splashHint.addEventListener('click', function(e) {
+    e.stopPropagation();
+    startSplash();
+  });
+  splashOverlay.addEventListener('click', function() {
+    if (!splashVideo.paused) return;
+    startSplash();
+  });
+  splashVideo.addEventListener('click', function() {
+    if (!splashVideo.paused) return;
+    startSplash();
+  });
 }
 init();
 </script>
@@ -843,7 +992,6 @@ function mpBuildList() {
     html += '<div class="mp-playlist-item' + (i === mpIndex ? ' active' : '') + '" data-idx="' + i + '"><span>' + t.title + '</span><span class="pl-artist">' + t.artist + '</span></div>';
   }
   mpPlaylistEl.innerHTML = html;
-  // 绑定点击
   var items = mpPlaylistEl.querySelectorAll(".mp-playlist-item");
   items.forEach(function(el) {
     el.addEventListener("click", function(e) {
@@ -871,5 +1019,4 @@ document.addEventListener("click", function() {
 mpLoad(0);
 mpPlay();
 </script>
-</html>
 </html>
